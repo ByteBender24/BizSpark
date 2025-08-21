@@ -9,7 +9,6 @@ except ImportError:
     PyPDF2 = None
 import io
 
-# Text storage paths (simplified without embeddings for now)
 ADMIN_TEXTS_PATH = "admin_texts.pkl"
 SHOP_TEXTS_PATH = "shop_texts.pkl"
 

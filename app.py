@@ -1,368 +1,303 @@
+# app.py
+import os
 import streamlit as st
 import pandas as pd
-import os
-from auth_utils import authenticate_user, get_user_role
-from rag_utils import (
-    upload_and_process_document, 
-    query_knowledge_base, 
-    initialize_vector_store
-)
-from inventory_utils import (
-    get_inventory_data, 
-    update_inventory_data, 
-    import_inventory_csv, 
-    export_inventory_csv,
-    query_inventory_chatbot
-)
-from chat_utils import generate_response
-from database_init import initialize_database
+import google.generativeai as genai
 
-# Initialize database and vector store on startup
-@st.cache_resource
-def initialize_app():
-    initialize_database()
-    initialize_vector_store()
-    return True
+# ----------------------------
+# CONFIG
+# ----------------------------
+st.set_page_config(page_title="MSME AI Assistant", layout="wide")
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-# Page configuration
-st.set_page_config(
-    page_title="MSME Business Management Platform",
-    page_icon="🏢",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Ensure docs folder exists
+DOCS_DIR = "docs"
+os.makedirs(DOCS_DIR, exist_ok=True)
 
-def main():
-    # Initialize app
-    initialize_app()
-    
-    # Authentication
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-        st.session_state.user_role = None
-        st.session_state.user_token = None
-    
-    if not st.session_state.authenticated:
-        show_login_page()
-    else:
-        show_main_app()
-
-def show_login_page():
-    st.title("🏢 MSME Business Management Platform")
-    st.markdown("---")
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.subheader("Login")
-        token = st.text_input("Enter your access token:", type="password")
-        
-        if st.button("Login", type="primary"):
-            user_role = authenticate_user(token)
-            if user_role:
-                st.session_state.authenticated = True
-                st.session_state.user_role = user_role
-                st.session_state.user_token = token
-                st.rerun()
-            else:
-                st.error("Invalid token. Please try again.")
-        
-        st.markdown("---")
-        st.info("**Roles:**\n- Admin: Manage MSME compliance docs\n- Shop Owner: Manage inventory and shop knowledge base")
-
-def show_main_app():
-    # Sidebar navigation
-    with st.sidebar:
-        st.title(f"Welcome, {st.session_state.user_role}!")
-        
-        if st.button("Logout"):
-            st.session_state.authenticated = False
-            st.session_state.user_role = None
-            st.session_state.user_token = None
-            st.rerun()
-        
-        st.markdown("---")
-        
-        # Navigation based on role
-        if st.session_state.user_role == "Admin":
-            page = st.selectbox(
-                "Navigate to:",
-                ["Admin Knowledge Base", "Admin Chatbot"]
-            )
-        else:  # Shop Owner
-            page = st.selectbox(
-                "Navigate to:",
-                ["Inventory Management", "Shop Knowledge Base", "Customer Chatbot", "Inventory Chatbot", "MSME Guidance"]
-            )
-    
-    # Main content based on selected page
-    if page == "Admin Knowledge Base":
-        show_admin_knowledge_base()
-    elif page == "Admin Chatbot":
-        show_admin_chatbot()
-    elif page == "Inventory Management":
-        show_inventory_management()
-    elif page == "Shop Knowledge Base":
-        show_shop_knowledge_base()
-    elif page == "Customer Chatbot":
-        show_customer_chatbot()
-    elif page == "Inventory Chatbot":
-        show_inventory_chatbot()
-    elif page == "MSME Guidance":
-        show_msme_guidance()
-
-def show_admin_knowledge_base():
-    st.title("📚 Admin Knowledge Base Management")
-    st.markdown("Upload MSME-related documents (laws, compliance, schemes)")
-    
-    uploaded_file = st.file_uploader(
-        "Upload Document",
-        type=['txt', 'pdf'],
-        help="Upload text files or PDFs containing MSME guidance"
+# Initialize session state
+if "inventory" not in st.session_state:
+    st.session_state["inventory"] = pd.DataFrame(
+        columns=["Product Name", "Quantity", "Price", "Category"]
     )
-    
-    if uploaded_file is not None:
-        if st.button("Process Document", type="primary"):
-            with st.spinner("Processing document..."):
-                try:
-                    result = upload_and_process_document(uploaded_file, "admin")
-                    if result:
-                        st.success("Document processed and added to knowledge base!")
-                    else:
-                        st.error("Failed to process document.")
-                except Exception as e:
-                    st.error(f"Error processing document: {str(e)}")
 
-def show_admin_chatbot():
-    st.title("🤖 Admin Knowledge Chatbot")
-    st.markdown("Test the MSME guidance knowledge base")
-    
-    if "admin_chat_history" not in st.session_state:
-        st.session_state.admin_chat_history = []
-    
-    # Display chat history
-    for message in st.session_state.admin_chat_history:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
-    
-    # Chat input
-    if prompt := st.chat_input("Ask about MSME laws, compliance, or schemes..."):
-        # Add user message to history
-        st.session_state.admin_chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
-        
-        # Generate and display response
+# Gemini helper
+def ask_gemini(prompt):
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
+    return response.text if response else "⚠️ No response from Gemini."
+
+# Helper: Read all docs from folder
+def load_docs():
+    texts = []
+    for filename in os.listdir(DOCS_DIR):
+        if filename.endswith(".txt"):
+            with open(os.path.join(DOCS_DIR, filename), "r", encoding="utf-8") as f:
+                texts.append(f.read())
+    return "\n\n".join(texts) if texts else "No shop info uploaded yet."
+
+
+# ----------------------------
+# SIDEBAR NAVIGATION
+# ----------------------------
+st.sidebar.title("📌 MSME AI Platform")
+page = st.sidebar.radio(
+    "Choose Section",
+    ["🏪 Customer Chatbot", "🛠️ Owner Dashboard", "📂 Docs Manager", "📊 Insights"],
+)
+
+
+# ----------------------------
+# CUSTOMER CHATBOT
+# ----------------------------
+if page == "🏪 Customer Chatbot":
+    st.title("🏪 Customer Chatbot")
+    st.write("Ask me about this shop’s products and services!")
+
+    if "cust_chat" not in st.session_state:
+        st.session_state["cust_chat"] = []
+
+    for msg in st.session_state["cust_chat"]:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["text"])
+
+    query = st.chat_input("Type your question here...")
+    if query:
+        st.session_state["cust_chat"].append({"role": "user", "text": query})
+
+        context = load_docs()
+        prompt = f"""You are a helpful assistant for a shop.
+Shop Information:
+{context}
+
+Customer Question:
+{query}
+
+Answer in a simple and clear way.
+"""
+        answer = ask_gemini(prompt)
+
+        st.session_state["cust_chat"].append({"role": "assistant", "text": answer})
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    response = query_knowledge_base(prompt, "admin")
-                    st.write(response)
-                    st.session_state.admin_chat_history.append({"role": "assistant", "content": response})
-                except Exception as e:
-                    error_msg = f"Sorry, I encountered an error: {str(e)}"
-                    st.write(error_msg)
-                    st.session_state.admin_chat_history.append({"role": "assistant", "content": error_msg})
+            st.markdown(answer)
 
-def show_inventory_management():
-    st.title("📦 Inventory Management")
-    
-    # CSV Upload/Download section
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Import Inventory")
-        uploaded_file = st.file_uploader("Upload CSV file", type=['csv'])
-        
-        if uploaded_file is not None:
-            if st.button("Import CSV", type="primary"):
-                with st.spinner("Importing data..."):
-                    try:
-                        result = import_inventory_csv(uploaded_file)
-                        if result:
-                            st.success("Inventory imported successfully!")
-                            st.rerun()
-                        else:
-                            st.error("Failed to import inventory.")
-                    except Exception as e:
-                        st.error(f"Import error: {str(e)}")
-    
-    with col2:
-        st.subheader("Export Inventory")
-        if st.button("Download Current Inventory", type="secondary"):
-            try:
-                csv_data = export_inventory_csv()
-                if csv_data:
-                    st.download_button(
-                        label="Download CSV",
-                        data=csv_data,
-                        file_name="inventory.csv",
-                        mime="text/csv"
-                    )
-                else:
-                    st.warning("No inventory data to export.")
-            except Exception as e:
-                st.error(f"Export error: {str(e)}")
-    
-    st.markdown("---")
-    
-    # Inventory Editor
-    st.subheader("📊 Inventory Editor")
-    
-    try:
-        df = get_inventory_data()
-        
-        if df.empty:
-            st.info("No inventory data found. Upload a CSV file or add items manually.")
-            # Create empty dataframe with standard columns
-            df = pd.DataFrame(columns=['product_name', 'quantity', 'unit_price', 'category', 'description'])
-        
-        # Editable dataframe
-        edited_df = st.data_editor(
-            df,
+
+# ----------------------------
+# OWNER DASHBOARD
+# ----------------------------
+elif page == "🛠️ Owner Dashboard":
+    st.title("🛠️ Owner Dashboard")
+
+    tabs = st.tabs(["💬 Chat with Documents", "📦 Inventory Manager"])
+
+    # --- Owner chat with documents ---
+    with tabs[0]:
+        st.subheader("💬 Chat with your uploaded documents")
+
+        if "owner_chat" not in st.session_state:
+            st.session_state["owner_chat"] = []
+
+        for msg in st.session_state["owner_chat"]:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["text"])
+
+        query = st.chat_input("Ask about your documents...")
+        if query:
+            st.session_state["owner_chat"].append({"role": "user", "text": query})
+
+            context = load_docs()
+            prompt = f"""You are an assistant helping the shop owner.
+Here are their uploaded documents:
+{context}
+
+Owner Question:
+{query}
+
+Give clear and useful answers.
+"""
+            answer = ask_gemini(prompt)
+
+            st.session_state["owner_chat"].append({"role": "assistant", "text": answer})
+            with st.chat_message("assistant"):
+                st.markdown(answer)
+
+    # --- Inventory Manager ---
+    # ----------------------------
+    # INVENTORY MANAGER
+    # ----------------------------
+    INV_FILE = os.path.join(DOCS_DIR, "inventory.csv")
+
+    # Load inventory from CSV at startup
+    if os.path.exists(INV_FILE) and "inventory" not in st.session_state:
+        st.session_state["inventory"] = pd.read_csv(INV_FILE)
+    elif "inventory" not in st.session_state:
+        st.session_state["inventory"] = pd.DataFrame(
+            columns=["Product Name", "Quantity", "Price", "Category"]
+        )
+
+    with tabs[1]:
+        st.subheader("📦 Inventory Manager")
+
+        uploaded_csv = st.file_uploader("Upload inventory CSV", type=["csv"])
+        if uploaded_csv:
+            st.session_state["inventory"] = pd.read_csv(uploaded_csv)
+            st.session_state["inventory"].to_csv(INV_FILE, index=False)  # Save immediately
+            st.success("✅ Inventory loaded and saved!")
+
+        # Editable table
+        st.session_state["inventory"] = st.data_editor(
+            st.session_state["inventory"],
             num_rows="dynamic",
             use_container_width=True,
-            column_config={
-                "product_name": st.column_config.TextColumn("Product Name", required=True),
-                "quantity": st.column_config.NumberColumn("Quantity", min_value=0),
-                "unit_price": st.column_config.NumberColumn("Unit Price", min_value=0.0, format="$%.2f"),
-                "category": st.column_config.TextColumn("Category"),
-                "description": st.column_config.TextColumn("Description")
-            }
         )
-        
-        if st.button("Save Changes", type="primary"):
-            with st.spinner("Saving changes..."):
-                try:
-                    result = update_inventory_data(edited_df)
-                    if result:
-                        st.success("Inventory updated successfully!")
-                    else:
-                        st.error("Failed to update inventory.")
-                except Exception as e:
-                    st.error(f"Update error: {str(e)}")
-    
-    except Exception as e:
-        st.error(f"Error loading inventory: {str(e)}")
 
-def show_shop_knowledge_base():
-    st.title("🏪 Shop Knowledge Base Management")
-    st.markdown("Upload shop-specific documents (product info, FAQs, policies)")
-    
-    uploaded_file = st.file_uploader(
-        "Upload Document",
-        type=['txt', 'pdf'],
-        help="Upload documents about your shop, products, or services"
+        # Save button → persist changes
+        if st.button("💾 Save Changes"):
+            st.session_state["inventory"].to_csv(INV_FILE, index=False)
+            st.success("✅ Inventory saved to storage!")
+
+        st.download_button(
+            "⬇️ Download Inventory CSV",
+            data=st.session_state["inventory"].to_csv(index=False),
+            file_name="inventory.csv",
+            mime="text/csv",
+        )
+
+        st.write("### 💬 Ask about or update your inventory")
+        if "inv_chat" not in st.session_state:
+            st.session_state["inv_chat"] = []
+
+        for msg in st.session_state["inv_chat"]:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["text"])
+
+        query = st.chat_input("E.g., 'Add 10 Laptops at $800 in Electronics'")
+        if query:
+            st.session_state["inv_chat"].append({"role": "user", "text": query})
+
+            inventory_text = st.session_state["inventory"].to_string(index=False)
+            prompt = f"""You are an assistant for inventory management.
+
+    Here is the current inventory table:
+    {inventory_text}
+
+    Owner Request:
+    {query}
+
+    If updates are requested (add, remove, update quantity/price/category),
+    output clear **step-by-step instructions** of what to change in the table.
+    """
+            answer = ask_gemini(prompt)
+
+            # Append assistant response
+            st.session_state["inv_chat"].append({"role": "assistant", "text": answer})
+            with st.chat_message("assistant"):
+                st.markdown(answer)
+
+            # --- Parse changes (very simple example) ---
+            if "add" in query.lower():
+                # crude parsing example: "Add 10 Laptops at $800 in Electronics"
+                try:
+                    words = query.split()
+                    qty = int([w for w in words if w.isdigit()][0])
+                    name = next(w for w in words if w.istitle())
+                    price = float([w.strip("$") for w in words if "$" in w][0])
+                    cat = words[-1]
+
+                    new_row = pd.DataFrame(
+                        [[name, qty, price, cat]],
+                        columns=["Product Name", "Quantity", "Price", "Category"],
+                    )
+                    st.session_state["inventory"] = pd.concat(
+                        [st.session_state["inventory"], new_row],
+                        ignore_index=True
+                    )
+                    st.session_state["inventory"].to_csv(INV_FILE, index=False)
+                    st.success(f"✅ Added {qty} {name}(s) to inventory.")
+                except:
+                    st.warning("⚠️ Could not parse request into table changes. Please edit manually.")
+
+            elif "remove" in query.lower():
+                # crude remove: e.g., "Remove Laptop"
+                try:
+                    words = query.split()
+                    item = next(w for w in words if w.istitle())
+                    st.session_state["inventory"] = st.session_state["inventory"][
+                        st.session_state["inventory"]["Product Name"] != item
+                    ]
+                    st.session_state["inventory"].to_csv(INV_FILE, index=False)
+                    st.success(f"✅ Removed {item} from inventory.")
+                except:
+                    st.warning("⚠️ Could not parse request into table changes. Please edit manually.")
+
+            elif "update" in query.lower():
+                # crude update: e.g., "Update Laptop quantity to 50"
+                try:
+                    words = query.split()
+                    item = next(w for w in words if w.istitle())
+                    if "quantity" in query.lower():
+                        qty = int([w for w in words if w.isdigit()][0])
+                        st.session_state["inventory"].loc[
+                            st.session_state["inventory"]["Product Name"] == item,
+                            "Quantity"
+                        ] = qty
+                        st.success(f"✅ Updated {item} quantity to {qty}.")
+                    st.session_state["inventory"].to_csv(INV_FILE, index=False)
+                except:
+                    st.warning("⚠️ Could not parse update. Please edit manually.")
+
+
+
+# ----------------------------
+# DOCS MANAGER
+# ----------------------------
+elif page == "📂 Docs Manager":
+    st.title("📂 Manage Documents")
+
+    st.subheader("📤 Upload .txt documents")
+    uploaded_files = st.file_uploader(
+        "Upload your .txt files", type=["txt"], accept_multiple_files=True
     )
-    
-    if uploaded_file is not None:
-        if st.button("Process Document", type="primary"):
-            with st.spinner("Processing document..."):
-                try:
-                    result = upload_and_process_document(uploaded_file, "shop")
-                    if result:
-                        st.success("Document processed and added to shop knowledge base!")
-                    else:
-                        st.error("Failed to process document.")
-                except Exception as e:
-                    st.error(f"Error processing document: {str(e)}")
+    if uploaded_files:
+        for file in uploaded_files:
+            filepath = os.path.join(DOCS_DIR, file.name)
+            with open(filepath, "wb") as f:
+                f.write(file.getbuffer())
+        st.success("✅ Files uploaded successfully!")
 
-def show_customer_chatbot():
-    st.title("💬 Customer Support Chatbot")
-    st.markdown("**Public-facing chatbot** - Answers customer questions based on your shop knowledge base")
-    
-    if "customer_chat_history" not in st.session_state:
-        st.session_state.customer_chat_history = []
-    
-    # Display chat history
-    for message in st.session_state.customer_chat_history:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
-    
-    # Chat input
-    if prompt := st.chat_input("Ask about products, services, or shop information..."):
-        # Add user message to history
-        st.session_state.customer_chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
-        
-        # Generate and display response
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    response = query_knowledge_base(prompt, "shop")
-                    if not response or "I don't have information" in response:
-                        response = "I'm sorry, I don't have specific information about that. Please contact the shop directly for more details."
-                    st.write(response)
-                    st.session_state.customer_chat_history.append({"role": "assistant", "content": response})
-                except Exception as e:
-                    error_msg = "I'm sorry, I'm having trouble accessing information right now. Please try again later."
-                    st.write(error_msg)
-                    st.session_state.customer_chat_history.append({"role": "assistant", "content": error_msg})
+    st.subheader("📋 Existing Documents")
+    files = os.listdir(DOCS_DIR)
+    txt_files = [f for f in files if f.endswith(".txt")]
 
-def show_inventory_chatbot():
-    st.title("📦 Inventory Assistant")
-    st.markdown("Ask questions about your inventory or request updates")
-    
-    if "inventory_chat_history" not in st.session_state:
-        st.session_state.inventory_chat_history = []
-    
-    # Display chat history
-    for message in st.session_state.inventory_chat_history:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
-    
-    # Chat input
-    if prompt := st.chat_input("Ask about inventory or request updates (e.g., 'What's my stock of Product X?' or 'Add 10 items to Product Y')"):
-        # Add user message to history
-        st.session_state.inventory_chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
-        
-        # Generate and display response
-        with st.chat_message("assistant"):
-            with st.spinner("Processing..."):
-                try:
-                    response = query_inventory_chatbot(prompt)
-                    st.write(response)
-                    st.session_state.inventory_chat_history.append({"role": "assistant", "content": response})
-                except Exception as e:
-                    error_msg = f"Sorry, I encountered an error: {str(e)}"
-                    st.write(error_msg)
-                    st.session_state.inventory_chat_history.append({"role": "assistant", "content": error_msg})
+    if txt_files:
+        for f in txt_files:
+            col1, col2 = st.columns([4, 1])
+            col1.write(f)
+            if col2.button("❌ Delete", key=f"del_{f}"):
+                os.remove(os.path.join(DOCS_DIR, f))
+                st.experimental_rerun()
+    else:
+        st.info("No documents found. Upload some to get started.")
 
-def show_msme_guidance():
-    st.title("🏛️ MSME Guidance & Compliance")
-    st.markdown("Get guidance on MSME laws, schemes, and compliance requirements")
-    
-    if "msme_chat_history" not in st.session_state:
-        st.session_state.msme_chat_history = []
-    
-    # Display chat history
-    for message in st.session_state.msme_chat_history:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
-    
-    # Chat input
-    if prompt := st.chat_input("Ask about MSME laws, compliance requirements, government schemes..."):
-        # Add user message to history
-        st.session_state.msme_chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
-        
-        # Generate and display response
-        with st.chat_message("assistant"):
-            with st.spinner("Searching MSME knowledge base..."):
-                try:
-                    response = query_knowledge_base(prompt, "admin")
-                    if not response or "I don't have information" in response:
-                        response = "I don't have specific information about that in the MSME knowledge base. Please consult with an MSME advisor or check official government resources."
-                    st.write(response)
-                    st.session_state.msme_chat_history.append({"role": "assistant", "content": response})
-                except Exception as e:
-                    error_msg = f"Sorry, I encountered an error accessing the MSME knowledge base: {str(e)}"
-                    st.write(error_msg)
-                    st.session_state.msme_chat_history.append({"role": "assistant", "content": error_msg})
 
-if __name__ == "__main__":
-    main()
+# ----------------------------
+# INSIGHTS
+# ----------------------------
+elif page == "📊 Insights":
+    st.title("📊 Inventory Insights")
+    inv = st.session_state["inventory"]
+
+    if inv.empty:
+        st.warning("⚠️ No inventory uploaded yet.")
+    else:
+        low_stock = inv[inv["Quantity"].astype(float) < 10]
+        out_stock = inv[inv["Quantity"].astype(float) == 0]
+
+        st.subheader("⚠️ Low Stock (<10)")
+        st.dataframe(low_stock, use_container_width=True)
+
+        st.subheader("❌ Out of Stock")
+        st.dataframe(out_stock, use_container_width=True)
+
+        st.subheader("📈 Inventory Overview")
+        st.bar_chart(inv.set_index("Product Name")["Quantity"])
+

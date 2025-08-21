@@ -2,10 +2,6 @@
 
 This is an MSME (Micro, Small & Medium Enterprise) Business Management Platform built with Streamlit. The application provides role-based access control for Admins and Shop Owners, featuring inventory management capabilities, document-based knowledge retrieval using RAG (Retrieval-Augmented Generation), and AI-powered chat assistance. The platform enables businesses to manage their inventory through CRUD operations, upload and query documents for knowledge management, and interact with AI chatbots for business assistance.
 
-# User Preferences
-
-Preferred communication style: Simple, everyday language.
-
 # System Architecture
 
 ## Frontend Architecture
