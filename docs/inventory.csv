@@ -1,53 +1,54 @@
 Product Name,Quantity,Price,Category
-Parle-G Biscuits (100g),25,10,Snacks
-Parle-G Biscuits (250g),8,25,Snacks
-Good Day Cashew Cookies,15,30,Snacks
-Oreo Vanilla,5,35,Snacks
-Oreo Chocolate,0,35,Snacks
-Marie Gold Biscuits,12,28,Snacks
-Sunfeast Dark Fantasy Choco Fills,6,40,Snacks
-Maggi Noodles (70g),30,14,Instant Food
-Maggi Noodles (4 Pack),10,55,Instant Food
-Top Ramen Curry Noodles,3,12,Instant Food
-Knorr Soup (Tomato),9,45,Instant Food
-Aashirvaad Atta (10kg),2,480,Grocery
-Aashirvaad Atta (5kg),7,260,Grocery
-Fortune Rice (10kg),4,550,Grocery
-India Gate Basmati Rice (5kg),12,450,Grocery
-Tata Salt (1kg),25,22,Grocery
-Catch Black Pepper (100g),3,85,Grocery
-Everest Chilli Powder (200g),6,95,Grocery
-MDH Garam Masala (100g),10,70,Grocery
-Horlicks Classic Malt (500g),8,230,Beverages
-Boost Health Drink (500g),4,250,Beverages
-Bournvita (750g),0,320,Beverages
-Red Label Tea (500g),11,280,Beverages
-Tata Tea Gold (250g),6,150,Beverages
-Nescafe Classic Coffee (100g),3,310,Beverages
-Bru Instant Coffee (100g),2,290,Beverages
-Coca Cola (2L),18,95,Beverages
-Pepsi (2L),12,90,Beverages
-Sprite (2L),5,92,Beverages
-Bisleri Water (1L),40,20,Beverages
-Kinley Water (500ml),50,10,Beverages
-Dove Soap (100g),7,65,Personal Care
-Lifebuoy Soap (100g),20,35,Personal Care
-Lux Soap (100g),15,40,Personal Care
-Pears Soap (125g),9,75,Personal Care
-Dettol Handwash (200ml),6,99,Personal Care
-Colgate Toothpaste (100g),18,55,Personal Care
-Pepsodent Toothpaste (100g),8,50,Personal Care
-Close Up Toothpaste (150g),5,60,Personal Care
-Clinic Plus Shampoo (180ml),4,110,Personal Care
-Head & Shoulders Shampoo (180ml),7,135,Personal Care
-Sunsilk Shampoo (340ml),2,240,Personal Care
-Surf Excel (1kg),12,210,Household
-Ariel Detergent (1kg),5,215,Household
-Tide Detergent (1kg),18,200,Household
-Rin Detergent Bar (250g),25,20,Household
-Harpic Toilet Cleaner (500ml),6,95,Household
-Lizol Floor Cleaner (500ml),3,110,Household
-Good Knight Mosquito Coil (Pack of 10),9,65,Household
-All Out Liquid Refill,2,75,Household
-Matchbox,80,2,Household
-Candles (Pack of 6),15,30,Household
+Parle-G Biscuits (100g),25.0,10.0,Snacks
+Parle-G Biscuits (250g),8.0,25.0,Snacks
+Good Day Cashew Cookies,15.0,30.0,Snacks
+Oreo Vanilla,5.0,35.0,Snacks
+Oreo Chocolate,0.0,35.0,Snacks
+Marie Gold Biscuits,12.0,28.0,Snacks
+Sunfeast Dark Fantasy Choco Fills,6.0,40.0,Snacks
+Maggi Noodles (70g),30.0,14.0,Instant Food
+Maggi Noodles (4 Pack),10.0,55.0,Instant Food
+Top Ramen Curry Noodles,3.0,12.0,Instant Food
+Knorr Soup (Tomato),9.0,45.0,Instant Food
+Aashirvaad Atta (10kg),2.0,480.0,Grocery
+Aashirvaad Atta (5kg),7.0,260.0,Grocery
+Fortune Rice (10kg),4.0,550.0,Grocery
+India Gate Basmati Rice (5kg),12.0,450.0,Grocery
+Tata Salt (1kg),25.0,22.0,Grocery
+Catch Black Pepper (100g),3.0,85.0,Grocery
+Everest Chilli Powder (200g),6.0,95.0,Grocery
+MDH Garam Masala (100g),10.0,70.0,Grocery
+Horlicks Classic Malt (500g),8.0,230.0,Beverages
+Boost Health Drink (500g),4.0,250.0,Beverages
+Bournvita (750g),0.0,320.0,Beverages
+Red Label Tea (500g),11.0,280.0,Beverages
+Tata Tea Gold (250g),6.0,150.0,Beverages
+Nescafe Classic Coffee (100g),3.0,310.0,Beverages
+Bru Instant Coffee (100g),2.0,290.0,Beverages
+Coca Cola (2L),18.0,95.0,Beverages
+Pepsi (2L),12.0,90.0,Beverages
+Sprite (2L),5.0,92.0,Beverages
+Bisleri Water (1L),40.0,20.0,Beverages
+Kinley Water (500ml),50.0,10.0,Beverages
+Dove Soap (100g),7.0,65.0,Personal Care
+Lifebuoy Soap (100g),20.0,35.0,Personal Care
+Lux Soap (100g),15.0,40.0,Personal Care
+Pears Soap (125g),9.0,75.0,Personal Care
+Dettol Handwash (200ml),6.0,99.0,Personal Care
+Colgate Toothpaste (100g),18.0,55.0,Personal Care
+Pepsodent Toothpaste (100g),8.0,50.0,Personal Care
+Close Up Toothpaste (150g),5.0,60.0,Personal Care
+Clinic Plus Shampoo (180ml),4.0,110.0,Personal Care
+Head & Shoulders Shampoo (180ml),7.0,135.0,Personal Care
+Sunsilk Shampoo (340ml),2.0,240.0,Personal Care
+Surf Excel (1kg),12.0,210.0,Household
+Ariel Detergent (1kg),5.0,215.0,Household
+Tide Detergent (1kg),18.0,200.0,Household
+Rin Detergent Bar (250g),25.0,20.0,Household
+Harpic Toilet Cleaner (500ml),6.0,95.0,Household
+Lizol Floor Cleaner (500ml),3.0,110.0,Household
+Good Knight Mosquito Coil (Pack of 10),9.0,65.0,Household
+All Out Liquid Refill,2.0,75.0,Household
+Matchbox,80.0,2.0,Household
+Candles (Pack of 6),15.0,30.0,Household
+,,,
